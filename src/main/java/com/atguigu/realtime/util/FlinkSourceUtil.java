@@ -3,10 +3,18 @@ package com.atguigu.realtime.util;
 
 import com.ververica.cdc.connectors.mysql.source.MySqlSource;
 import com.ververica.cdc.debezium.JsonDebeziumDeserializationSchema;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import com.atguigu.realtime.common.Constant;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
+import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
+import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+
+import java.nio.charset.StandardCharsets;
 
 
 public class FlinkSourceUtil {
@@ -18,15 +26,41 @@ public class FlinkSourceUtil {
      * @return KafkaSource<String>
      */
     public static KafkaSource<String> getKafkaSource(String groupId, String topic) {
+
         return KafkaSource.<String>builder()
                 .setBootstrapServers(Constant.KAFKA_BROKERS)
                 .setTopics(topic)
                 .setGroupId(groupId)
                 .setStartingOffsets(OffsetsInitializer.latest())
-                .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperty("isolation.level", "read_committed ")
+//                .setValueOnlyDeserializer(new SimpleStringSchema())   // 存在问题，当kafka的值为null时无法正常解析
+//                .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class))
+                .setDeserializer(KafkaRecordDeserializationSchema.of(new KafkaDeserializationSchema<String>() {
+                    // 是否结束流
+                    @Override
+                    public boolean isEndOfStream(String nextElement) {
+                        return false;
+                    }
+
+                    // 处理kafka的数据
+                    @Override
+                    public String deserialize(ConsumerRecord<byte[], byte[]> record) throws Exception {
+                        byte[] value = record.value();
+                        if (value != null) {
+                            return new String(value, StandardCharsets.UTF_8);
+                        }
+                        return null;
+                    }
+
+                    // 反序列化后的数据类型
+                    @Override
+                    public TypeInformation<String> getProducedType() {
+                        return TypeInformation.of(String.class);
+                    }
+                }))
                 .build();
     }
+
 
     /**
      * 自定义MysqlSource,flink cdc
