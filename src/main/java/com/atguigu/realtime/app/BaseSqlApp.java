@@ -9,6 +9,8 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
+import java.time.ZoneId;
+
 public abstract class BaseSqlApp {
     public void initKafka(int port, int parallelism, String jobName) {
         System.setProperty("HADOOP_USER_NAME", "atguigu");
@@ -35,6 +37,11 @@ public abstract class BaseSqlApp {
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
+
+        // 给sql job起名字
+        tEnv.getConfig().getConfiguration().setString("pipeline.name", jobName);
+
+        tEnv.getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
 
         handle(env, tEnv);
     }

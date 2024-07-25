@@ -9,6 +9,7 @@ public class SqlUtil {
                 "'topic' = '" + topic + "', " +
                 "'properties.bootstrap.servers' = '" + Constant.KAFKA_BROKERS + "', " +
                 "'properties.group.id' = '" + groupId + "', " +
+//                "'scan.startup.mode' = 'earliest-offset', " +
                 "'scan.startup.mode' = 'latest-offset', " +
                 "'format' = 'json' " +
                 ")";
@@ -32,6 +33,16 @@ public class SqlUtil {
                 "'topic' = '" + topic + "', " +
                 "'properties.bootstrap.servers' = '" + Constant.KAFKA_BROKERS + "', " +
                 " 'format'='json' " +
+                ")";
+    }
+
+    public static String getUpsertKafkaSink(String topic) {
+        return "WITH ( " +
+                "'connector' = 'upsert-kafka', " +
+                "'topic' = '" + topic + "', " +
+                "'properties.bootstrap.servers' = '" + Constant.KAFKA_BROKERS + "', " +
+                "'key.format' = 'json', " +
+                "'value.format' = 'json' " +
                 ")";
     }
 }
