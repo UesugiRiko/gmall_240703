@@ -62,6 +62,20 @@ public abstract class BaseSqlApp {
                         ")" + SqlUtil.getKafkaSource(Constant.TOPIC_ODS_DB, groupId));
     }
 
+    // 读取ods_db数据(从最早的位置开始读)
+    public void readOdsDBFromEarliest(StreamTableEnvironment tEnv, String groupId) {
+        tEnv
+                .executeSql("CREATE TABLE ods_db( " +
+                        "`database` STRING, " +
+                        "`table` STRING, " +
+                        "`type` STRING, " +
+                        "`ts` BIGINT, " +
+                        "`data` MAP<STRING,STRING>, " +
+                        "`old` MAP<STRING,STRING>, " +
+                        "pt AS proctime() " +       // lookup join需要
+                        ")" + SqlUtil.getKafkaSourceEarliest(Constant.TOPIC_ODS_DB, groupId));
+    }
+
     // 读取base_dic
     public void readBaseDic(StreamTableEnvironment tEnv) {
         tEnv

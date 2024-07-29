@@ -15,6 +15,17 @@ public class SqlUtil {
                 ")";
     }
 
+    public static String getKafkaSourceEarliest(String topic, String groupId) {
+        return " WITH ( " +
+                "'connector' = 'kafka', " +
+                "'topic' = '" + topic + "', " +
+                "'properties.bootstrap.servers' = '" + Constant.KAFKA_BROKERS + "', " +
+                "'properties.group.id' = '" + groupId + "', " +
+                "'scan.startup.mode' = 'earliest-offset', " +
+                "'format' = 'json' " +
+                ")";
+    }
+
     public static String getMysqlSource(String tableName) {
         return " WITH ( " +
                 "'connector' = 'jdbc', " +

@@ -7,6 +7,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
+import java.time.Duration;
+
 /**
  * 交易域退单事务事实表
  */
@@ -17,8 +19,10 @@ public class DWD09DWDTradeOrderRefund extends BaseSqlApp {
 
     @Override
     protected void handle(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) {
+        // 1.设置TTL
+        tEnv.getConfig().setIdleStateRetention(Duration.ofMinutes(10));
         readOdsDB(tEnv, "DWD09DWDTradeOrderRefund");
-        // 1.ods_db筛选退单表
+        // 2.ods_db筛选退单表
         Table orderRefundInfo = tEnv
                 .sqlQuery("SELECT " +
                         "`data`['id'] id, " +
@@ -36,7 +40,7 @@ public class DWD09DWDTradeOrderRefund extends BaseSqlApp {
                         "FROM ods_db " +
                         "WHERE `database` = 'gmall' AND `table` = 'order_refund_info' AND `type` = 'insert' ");
         tEnv.createTemporaryView("ri", orderRefundInfo);
-        // 2.ods_db过滤订单表，获取退单数据
+        // 3.ods_db过滤订单表，获取退单数据
         Table orderInfo = tEnv
                 .sqlQuery("SELECT " +
                         "`data`['id'] id, " +
@@ -45,9 +49,9 @@ public class DWD09DWDTradeOrderRefund extends BaseSqlApp {
                         "FROM ods_db " +
                         "WHERE `database` = 'gmall' AND `table` = 'order_info' AND `type` = 'update' AND `old`['order_status'] IS NOT NULL AND `data`['order_status'] = '1005'");
         tEnv.createTemporaryView("oi", orderInfo);
-        // 3.读取字典表
+        // 4.读取字典表
         readBaseDic(tEnv);
-        // 4.3表join
+        // 5.3表join
         Table result = tEnv
                 .sqlQuery("SELECT " +
                         "ri.id, " +
@@ -70,7 +74,7 @@ public class DWD09DWDTradeOrderRefund extends BaseSqlApp {
                         "   JOIN oi ON ri.order_id = oi.id " +
                         "   JOIN base_dic FOR SYSTEM_TIME AS OF ri.pt AS dic1 ON dic1.dic_code = ri.refund_type " +
                         "   JOIN base_dic FOR SYSTEM_TIME AS OF ri.pt AS dic2 ON dic2.dic_code = ri.refund_reason_type ");
-        // 5.写入Kafka
+        // 6.写入Kafka
         tEnv
                 .executeSql("CREATE TABLE dwd_trade_order_refund( " +
                         "id STRING, " +

@@ -7,6 +7,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
+import java.time.Duration;
+
 /**
  * 交易域支付成功事务事实表
  */
@@ -17,7 +19,9 @@ public class DWD08DWDTradePaySuccessDetail extends BaseSqlApp {
 
     @Override
     protected void handle(StreamExecutionEnvironment env, StreamTableEnvironment tEnv) {
-        // 1.读取下单表
+        // 1.设置TTL
+        tEnv.getConfig().setIdleStateRetention(Duration.ofMinutes(30));
+        // 2.读取下单表
         tEnv
                 .executeSql("CREATE TABLE od( " +
                         "id STRING, " +
@@ -42,7 +46,7 @@ public class DWD08DWDTradePaySuccessDetail extends BaseSqlApp {
                         "ts BIGINT, " +
                         "row_op_ts TIMESTAMP_LTZ(3) " +
                         ")" + SqlUtil.getKafkaSource(Constant.TOPIC_DWD_TRADE_ORDER_DETAIL, "DWD08DWDTradePaySuccessDetail"));
-        // 2.ods_db筛选支付成功信息
+        // 3.ods_db筛选支付成功信息
         readOdsDB(tEnv, "DWD08DWDTradePaySuccessDetail");
         Table paymentInfo = tEnv
                 .sqlQuery("SELECT " +
@@ -55,9 +59,9 @@ public class DWD08DWDTradePaySuccessDetail extends BaseSqlApp {
                         "FROM ods_db " +
                         "WHERE `database` = 'gmall' AND `table` = 'payment_info' AND `type` = 'update' AND `old`['payment_status'] IS NOT NULL AND `data`['payment_status'] = '1602'");
         tEnv.createTemporaryView("pi", paymentInfo);
-        // 3.读取字典表
+        // 4.读取字典表
         readBaseDic(tEnv);
-        // 4.3表join
+        // 5.3表join
         Table result = tEnv
                 .sqlQuery("SELECT " +
                         "od.id, " +
@@ -85,7 +89,7 @@ public class DWD08DWDTradePaySuccessDetail extends BaseSqlApp {
                         "FROM pi " +
                         "   JOIN od ON pi.order_id = od.order_id " +
                         "   JOIN base_dic FOR SYSTEM_TIME AS OF pi.pt AS dic ON pi.payment_type = dic.dic_code ");
-        // 5.写入Kafka
+        // 6.写入Kafka
         tEnv
                 .executeSql("CREATE TABLE dwd_trade_pay_detail_suc( " +
                         "order_detail_id STRING, " +
